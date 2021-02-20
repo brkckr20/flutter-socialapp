@@ -16,19 +16,19 @@ class Kullanici {
       this.email,
       this.hakkinda});
 
-  factory Kullanici.firebasedenUret(User kullanici) {
+  factory Kullanici.firebasedenUret(FirebaseUser kullanici) {
     return Kullanici(
       id: kullanici.uid,
       kullaniciAdi: kullanici.displayName,
-      fotoUrl: kullanici.photoURL,
+      fotoUrl: kullanici.photoUrl,
       email: kullanici.email,
     );
   }
 
   factory Kullanici.dokumandanUret(DocumentSnapshot doc) {
-    var docData = doc.data();
+    var docData = doc.data;
     return Kullanici(
-      id: doc.id,
+      id: doc.documentID,
       kullaniciAdi: docData['kullaniciAdi'],
       email: docData['email'],
       fotoUrl: docData['fotoUrl'],

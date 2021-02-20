@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:social_app/modeller/kullanici.dart';
 import 'package:social_app/sayfalar/hesapolustur.dart';
+import 'package:social_app/sayfalar/sifremiunuttum.dart';
+import 'package:social_app/servisler/firestoreservisi.dart';
+import 'package:social_app/servisler/yetkilendirmeservisi.dart';
 
 class GirisSayfasi extends StatefulWidget {
   @override
@@ -8,10 +13,13 @@ class GirisSayfasi extends StatefulWidget {
 
 class _GirisSayfasiState extends State<GirisSayfasi> {
   final _formAnahtari = GlobalKey<FormState>();
+  final _scaffoldAnahtari = GlobalKey<ScaffoldState>();
   bool yukleniyor = false;
+  String email, sifre;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldAnahtari,
       body: Stack(
         children: [
           _sayfaElemanlari(),
@@ -62,6 +70,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
               }
               return null;
             },
+            onSaved: (girilenDeger) => email = girilenDeger,
           ), //yazi yazma alanı
           SizedBox(
             height: 40.0,
@@ -84,6 +93,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
               }
               return null;
             },
+            onSaved: (girilenDeger) => sifre = girilenDeger,
           ), //yazi yazma alanı
           SizedBox(
             height: 60.0,
@@ -135,29 +145,107 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
             height: 20.0,
           ),
           Center(
+            child: InkWell(
+              onTap: () => _googleIleGiris(),
               child: Text(
-            "Google İle Giriş Yap",
-            style: TextStyle(
-              fontSize: 19.0,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+                "Google İle Giriş Yap",
+                style: TextStyle(
+                  fontSize: 19.0,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[600],
+                ),
+              ),
             ),
-          )),
+          ),
           SizedBox(
             height: 20.0,
           ),
-          Center(child: Text("Şifremi Unuttum")),
+          Center(
+            child: InkWell(
+                child: Text("Şifremi Unuttum"),
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => SifremiUnuttum()));
+                }),
+
+            /** ilgili email adresine gelen maile tıklandığında şifre sıfırlama menüsü açılır ve şifre sıfırlanır */
+          ),
         ],
       ),
     );
   }
 
-  void _girisYap() {
+  void _girisYap() async {
+    final _yetkilendirmeServisi =
+        Provider.of<YetkilendirmeSevisi>(context, listen: false);
+
     if (_formAnahtari.currentState.validate()) {
       //form doğrulamasında hata yoksa
+      _formAnahtari.currentState.save();
+
       setState(() {
         yukleniyor = true;
       });
+
+      try {
+        await _yetkilendirmeServisi.mailIleGiris(email, sifre);
+      } catch (hata) {
+        setState(() {
+          yukleniyor = false;
+        });
+        uyariGoster(hataKodu: hata.code);
+      }
     }
+  }
+
+  void _googleIleGiris() async {
+    var _yetkilendirmeServisi =
+        Provider.of<YetkilendirmeSevisi>(context, listen: false);
+    setState(() {
+      yukleniyor = true;
+    });
+    try {
+      Kullanici kullanici = await _yetkilendirmeServisi.googleIleGirisYap();
+      if (kullanici != null) {
+        Kullanici firestoreKullanici =
+            await FireStoreServisi().kullaniciGetir(kullanici.id);
+        if (firestoreKullanici == null) {
+          FireStoreServisi().kullaniciOlustur(
+            id: kullanici.id,
+            email: kullanici.email,
+            kullaniciAdi: kullanici.kullaniciAdi,
+            fotoUrl: kullanici.fotoUrl,
+          );
+          print("kullanıcı olşturuldı");
+        }
+      }
+    } catch (hata) {
+      if (mounted) {
+        setState(() {
+          yukleniyor = false;
+        });
+      }
+      uyariGoster(hataKodu: hata.code);
+    }
+  }
+
+  uyariGoster({hataKodu}) {
+    String hataMesaji;
+    if (hataKodu == "invalid-email") {
+      hataMesaji = "Girdiğiniz mail adresi geçersizdir.";
+    } else if (hataKodu == "user-not-found") {
+      hataMesaji = "Böyle bir kullanıcı bulunamadı.";
+    } else if (hataKodu == "wrong-password") {
+      hataMesaji = "Şifre hatalı";
+    } else if (hataKodu == "user-dısabled") {
+      hataMesaji = "Kullanıcı engellenmiş";
+    } else {
+      hataMesaji = "Bilinmeyen bir hata meydana geldi $hataKodu";
+    }
+
+    var snackBar = SnackBar(content: Text(hataMesaji));
+    _scaffoldAnahtari.currentState.showSnackBar(snackBar);
   }
 }

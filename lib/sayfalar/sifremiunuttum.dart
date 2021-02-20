@@ -1,25 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:social_app/modeller/kullanici.dart';
-import 'package:social_app/servisler/firestoreservisi.dart';
 import 'package:social_app/servisler/yetkilendirmeservisi.dart';
 
-class HesapOlustur extends StatefulWidget {
+class SifremiUnuttum extends StatefulWidget {
   @override
-  _HesapOlusturState createState() => _HesapOlusturState();
+  _SifremiUnuttumState createState() => _SifremiUnuttumState();
 }
 
-class _HesapOlusturState extends State<HesapOlustur> {
+class _SifremiUnuttumState extends State<SifremiUnuttum> {
   bool yukleniyor = false;
   final _formAnahtari = GlobalKey<FormState>();
-  String kullaniciAdi, email, sifre;
+  String email;
   final _scaffoldAnahtari = GlobalKey<ScaffoldState>();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldAnahtari,
       appBar: AppBar(
-        title: Text("Hesap Oluştur"),
+        title: Text("Şifremi Sıfırla"),
       ),
       body: ListView(
         children: [
@@ -33,32 +31,6 @@ class _HesapOlusturState extends State<HesapOlustur> {
               key: _formAnahtari,
               child: Column(
                 children: [
-                  TextFormField(
-                    autocorrect: true, //klavyenin otomatik tamamlaması
-                    decoration: InputDecoration(
-                      hintText: "Kullanıcı adınızı girin..",
-                      labelText: "Kullanıcı adı",
-                      errorStyle: TextStyle(
-                        fontSize: 16.0,
-                      ),
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    validator: (girilenDeger) {
-                      //form doğrulama
-                      if (girilenDeger.isEmpty) {
-                        return "Kullanıcı adı boş bırakılamaz";
-                      } else if (girilenDeger.trim().length < 4 ||
-                          girilenDeger.trim().length > 10) {
-                        return "Kullanıcı adı en az 4 en fazla 10 karakter olmalıdır.";
-                      }
-                      return null;
-                    },
-                    onSaved: (girilenDeger) => kullaniciAdi = girilenDeger,
-                    // kaydet kullanici adı
-                  ), //yazi yazma alanı
-                  SizedBox(
-                    height: 10.0,
-                  ),
                   TextFormField(
                     keyboardType: TextInputType
                         .emailAddress, //klavye tipi. mail olunca @ işareti otomatik olarak gelir.
@@ -84,39 +56,14 @@ class _HesapOlusturState extends State<HesapOlustur> {
                     // kaydet email
                   ), //yazi yazma alanı
                   SizedBox(
-                    height: 10.0,
-                  ),
-                  TextFormField(
-                    obscureText: true, //parola gizleme
-                    decoration: InputDecoration(
-                      hintText: "Şifrenizi girin..",
-                      labelText: "Şifre",
-                      errorStyle: TextStyle(
-                        fontSize: 16.0,
-                      ),
-                      prefixIcon: Icon(Icons.lock),
-                    ),
-                    validator: (girilenDeger) {
-                      //form doğrulama
-                      if (girilenDeger.isEmpty) {
-                        return "Şifre alanı boş bırakılamaz";
-                      } else if (girilenDeger.trim().length < 4) {
-                        return "Şifre 4 karakterden az olamaz";
-                      }
-                      return null;
-                    },
-                    onSaved: (girilenDeger) => sifre = girilenDeger,
-                    // kaydet şifre
-                  ),
-                  SizedBox(
                     height: 50,
                   ),
                   Container(
                     width: double.infinity,
                     child: FlatButton(
-                      onPressed: _kullaniciOlustur,
+                      onPressed: _sifreyiSifirla,
                       child: Text(
-                        "Hesap Oluştur",
+                        "Şifremi Sıfırla",
                         style: TextStyle(
                           fontSize: 20.0,
                           fontWeight: FontWeight.bold,
@@ -135,11 +82,7 @@ class _HesapOlusturState extends State<HesapOlustur> {
     );
   }
 
-/**
- * 
- * kullanici objesi döndürür.
- */
-  void _kullaniciOlustur() async {
+  void _sifreyiSifirla() async {
     final _yetkilendirmeServisi =
         Provider.of<YetkilendirmeSevisi>(context, listen: false);
     var _formState = _formAnahtari.currentState;
@@ -149,15 +92,7 @@ class _HesapOlusturState extends State<HesapOlustur> {
         yukleniyor = true;
       });
       try {
-        Kullanici kullanici =
-            await _yetkilendirmeServisi.mailIleKayit(email, sifre);
-        if (kullanici != null) {
-          FireStoreServisi().kullaniciOlustur(
-            id: kullanici.id,
-            email: kullanici.email,
-            kullaniciAdi: kullanici.kullaniciAdi,
-          );
-        }
+        await _yetkilendirmeServisi.sifremiSifirla(email);
         Navigator.pop(context); //giriş yapıldığı için anasayfaya yönlendirdi
       } catch (hata) {
         setState(() {
@@ -178,10 +113,6 @@ class _HesapOlusturState extends State<HesapOlustur> {
     String hataMesaji;
     if (hataKodu == "invalid-email") {
       hataMesaji = "Girdiğiniz mail adresi geçersizdir.";
-    } else if (hataKodu == "emaıl-already-ın-use") {
-      hataMesaji = "Girdiğiniz mail daha önce kaydedilmiş";
-    } else if (hataKodu == "weak-password") {
-      hataMesaji = "Daha zor bir şifre belirleyin";
     } else {
       hataMesaji = "Hata : $hataKodu";
     }
